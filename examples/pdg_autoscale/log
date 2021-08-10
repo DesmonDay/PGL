@@ -1,0 +1,19 @@
+[INFO] 2021-08-10 03:21:39,300 [mp_reader.py:   23]:	ujson not install, fail back to use json instead
+[INFO] 2021-08-10 03:21:39,303 [train_gcn.py:  155]:	Namespace(dataset='cora', epoch=50, feature_pre_normalize=True, lr=0.01, weight_decay=0.0005)
+W0810 03:21:43.888989 11787 device_context.cc:444] Please NOTE: device: 0, GPU Compute Capability: 7.0, Driver API Version: 10.2, Runtime API Version: 10.2
+W0810 03:21:43.894567 11787 device_context.cc:462] device: 0, cuDNN Version: 7.6.
+
+
+--------------------------------------
+C++ Traceback (most recent call last):
+--------------------------------------
+0   paddle::framework::SignalHandle(char const*, int)
+1   paddle::platform::GetCurrentTraceBackString[abi:cxx11]()
+
+----------------------
+Error Message Summary:
+----------------------
+FatalError: `Segmentation fault` is detected by the operating system.
+  [TimeInfo: *** Aborted at 1628565708 (unix time) try "date -d @1628565708" if you are using GNU date ***]
+  [SignalInfo: *** SIGSEGV (@0x7f64aa728d00) received by PID 11787 (TID 0x7f6591406700) from PID 18446744072274218240 ***]
+
