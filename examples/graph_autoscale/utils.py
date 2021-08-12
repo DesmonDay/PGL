@@ -41,7 +41,7 @@ def one_hop_neighbor(graph, n_id):
     for p in all_pred_nodes:
         if p not in n_id:
             out_of_batch_neighbors.append(p)
-    out_of_batch_neighbors = np.array(out_of_batch_neighbors)
+    out_of_batch_neighbors = np.array(out_of_batch_neighbors, dtype=np.int64)
     new_n_id = np.concatenate((n_id, out_of_batch_neighbors))
     all_pred_eids = np.array(all_pred_eids)
     return new_n_id, all_pred_eids

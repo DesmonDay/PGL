@@ -1,4 +1,5 @@
 import os
+import pdb
 
 import paddle
 import numpy as np
@@ -39,7 +40,10 @@ def batch_fn(batches_nid, graph, ptr):
     n_id = np.concatenate(n_ids, axis=0)
     batch_size = np.size(n_id)
     new_nid, pred_eids = one_hop_neighbor(graph, n_id)
-    graph = subgraph(graph, nodes=new_nid, eid=pred_eids)
+    old_graph_flag = (len(new_nid) == graph.num_nodes) and \
+                     (len(pred_eids) == graph.num_edges)
+    if not old_graph_flag:
+        graph = subgraph(graph, nodes=new_nid, eid=pred_eids)
     offset = ptr[batch_ids]
     count = ptr[batch_ids + 1] - ptr[batch_ids]
     return SubgraphData(graph, batch_size, new_nid, offset, count)

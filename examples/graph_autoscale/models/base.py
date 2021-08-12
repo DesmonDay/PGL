@@ -57,7 +57,6 @@ class ScalableGNN(paddle.nn.Layer):
                  count=None, loader=None, **kwargs):
         if loader is not None:
             return self.mini_inference(loader)
-        
         self._async = (self.pool is not None and batch_size is not None
                        and n_id is not None and offset is not None
                        and count is not None)
@@ -72,15 +71,14 @@ class ScalableGNN(paddle.nn.Layer):
      
         # 1. 满足 async 条件，进行异步 pull
         
-        pdb.set_trace()
         if self._async:
             for hist in self.histories:
-                self.pool.async_pull(hist.emb, n_id[batch_size:], None, None)
+                x_id = n_id[batch_size:].pin_memory()
+                self.pool.async_pull(hist.emb, x_id, None, None)
         
-        """
         # 2. 进入各自 model 的 forward 函数，进行 push_and_pull
         out = self.forward(subgraph, x, batch_size, n_id, offset, count, **kwargs)
-
+        """
         # 3. 同样满足 async 条件，最后进行同步push
         if self._async:
             for hist in self.histories:
@@ -110,8 +108,9 @@ class ScalableGNN(paddle.nn.Layer):
             return paddle.concat([x[:batch_size], h], axis=0)
 
         else:
-            out = self.pool.synchronize_pull()[:n_id.numel().numpy()[0] - batch_size]
-            self.pool.async_push(x[:batch_size], history_emb, offsert, count)
+            out_batch_size = int(n_id.numel().numpy()[0] - batch_size)
+            out = self.pool.synchronize_pull()[:out_batch_size]
+            self.pool.async_push(x[:batch_size], history.emb, offset, count)
             out = paddle.concat([x[:batch_size], out], axis=0)
             self.pool.free_pull()
             return out

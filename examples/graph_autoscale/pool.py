@@ -28,12 +28,13 @@ class AsyncIOPool(paddle.nn.Layer):
     def _pull_stream(self, idx):
         if self._pull_streams[idx] is None:
             self._pull_streams[idx] = cuda.Stream(flag=1)
+            log.info("New Pull Stream")
         return self._pull_streams[idx]
 
     def _push_stream(self, idx):
-        pdb.set_trace()
         if self._push_streams[idx] is None:
             self._push_streams[idx] = cuda.Stream(flag=1)
+            log.info("New Push Stream")
         return self._push_streams[idx]
 
     def _cpu_buffer(self, idx):
@@ -51,7 +52,6 @@ class AsyncIOPool(paddle.nn.Layer):
 
     @paddle.no_grad()
     def async_pull(self, src, index, offset, count):
-        pdb.set_trace()
         self._pull_index = (self._pull_index + 1) % self.pool_size
         data = (self._pull_index, src, index, offset, count)
         self._pull_queue.append(data)
@@ -60,12 +60,12 @@ class AsyncIOPool(paddle.nn.Layer):
 
     @paddle.no_grad()
     def _async_pull(self, idx, src, index):
-        pdb.set_trace()
         with cuda.stream_guard(self._pull_stream(idx)):
             async_read(src, self._cuda_buffer(idx), index, self._cpu_buffer(idx))
 
     @paddle.no_grad()
-    def synchronize_pull():
+    def synchronize_pull(self):
+        # TODO: doubt 
         idx = self._pull_queue[0][0]
         cuda.synchronize() 
         self._pull_stream(idx).synchronize()

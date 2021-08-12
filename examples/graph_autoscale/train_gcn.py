@@ -54,9 +54,6 @@ def train(dataloader, model, feature, label, train_mask,
     for batch_data in dataloader:
         batch += 1
 
-        if epoch == 30:
-            paddle.fluid.core.nvprof_start()        
-
         g = batch_data.subgraph
         batch_size = batch_data.batch_size
         n_id = batch_data.n_id
@@ -65,6 +62,8 @@ def train(dataloader, model, feature, label, train_mask,
 
         g.tensor()
         n_id = paddle.to_tensor(n_id)
+        offset = paddle.to_tensor(offset, place=paddle.CPUPlace())
+        count = paddle.to_tensor(count, place=paddle.CPUPlace())
         feat = paddle.gather(feature, n_id)
         pred = model(g, feat, batch_size, n_id, offset, count)
         pred = paddle.gather(pred, n_id[:batch_size])
@@ -85,18 +84,23 @@ def train(dataloader, model, feature, label, train_mask,
         loss.backward()
         optim.step()
         optim.clear_grad()
-
-        if epoch == 31:
-            paddle.fluid.core.nvprof_stop()
-
         log.info("Epoch %d Batch %s %s" % (epoch, batch, loss.numpy()))
+
+
+@paddle.no_grad()
+def test():
+    model.eval()
+
+    # Full-batch inference since the graph is small
+    out = model()
 
 
 def main(args):  
     # Data Process
+    pdb.set_trace()
     data = load(args.dataset, args.feature_pre_normalize)
     feature = data.graph.node_feat["words"]
-    perm, ptr = random_partition(data.graph, num_clusters=40, shuffle=True)
+    perm, ptr = random_partition(data.graph, num_clusters=1, shuffle=True)
     dataset = PartitionDataset(perm, ptr)
     collate_fn = partial(batch_fn, graph=data.graph, ptr=ptr)
     train_loader = Dataloader(dataset, 
@@ -114,10 +118,10 @@ def main(args):
         in_channels=graph.node_feat["words"].shape[1],
         hidden_channels=16,
         out_channels=data.num_classes,
-        num_layers=3,
+        num_layers=1,
         dropout=0.5,
-        pool_size=5,
-        buffer_size=600,
+        pool_size=2,
+        buffer_size=2000,
     )    
 
     # Define optimizer and loss
@@ -138,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset", type=str, default="cora")
     parser.add_argument(
-        "--epoch", type=int, default=200, help="Epoch")
+        "--epoch", type=int, default=100, help="Epoch")
     parser.add_argument(
         "--lr", type=float, default=0.01, help="Learning rate")
     parser.add_argument(

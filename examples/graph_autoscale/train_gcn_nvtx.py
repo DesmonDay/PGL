@@ -53,6 +53,9 @@ def train(dataloader, model, feature, label, train_mask,
     
     for batch_data in dataloader:
         batch += 1
+        
+        if epoch == 30:
+            paddle.fluid.core.nvprof_start()
 
         g = batch_data.subgraph
         batch_size = batch_data.batch_size
@@ -62,6 +65,8 @@ def train(dataloader, model, feature, label, train_mask,
 
         g.tensor()
         n_id = paddle.to_tensor(n_id)
+        offset = paddle.to_tensor(offset, place=paddle.CPUPlace())
+        count = paddle.to_tensor(count, place=paddle.CPUPlace())
         feat = paddle.gather(feature, n_id)
         pred = model(g, feat, batch_size, n_id, offset, count)
         pred = paddle.gather(pred, n_id[:batch_size])
@@ -82,6 +87,10 @@ def train(dataloader, model, feature, label, train_mask,
         loss.backward()
         optim.step()
         optim.clear_grad()
+
+        if epoch == 31:
+            paddle.fluid.core.nvprof_stop()
+
         log.info("Epoch %d Batch %s %s" % (epoch, batch, loss.numpy()))
 
 
@@ -97,7 +106,7 @@ def main(args):
     # Data Process
     data = load(args.dataset, args.feature_pre_normalize)
     feature = data.graph.node_feat["words"]
-    perm, ptr = random_partition(data.graph, num_clusters=40, shuffle=True)
+    perm, ptr = random_partition(data.graph, num_clusters=100, shuffle=True)
     dataset = PartitionDataset(perm, ptr)
     collate_fn = partial(batch_fn, graph=data.graph, ptr=ptr)
     train_loader = Dataloader(dataset, 
@@ -131,8 +140,8 @@ def main(args):
     for epoch in range(args.epoch):
         train(train_loader, model, feature, data.label, data.train_mask,
               criterion, optim, epoch)
-        if epoch == 10:
-            break
+        # if epoch == 10:
+        #     break
 
     
 if __name__ == "__main__":
