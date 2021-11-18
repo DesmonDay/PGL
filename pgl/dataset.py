@@ -30,6 +30,7 @@ __all__ = [
     "ArXivDataset",
     "BlogCatalogDataset",
     "RedditDataset",
+    "OgbnArxivDataset",
 ]
 
 
@@ -427,3 +428,53 @@ class RedditDataset(object):
         self.test_label = test_label
         self.feature = feature
         self.num_classes = 41
+
+
+class OgbnArxivDataset(object):
+    """Ogbn Arxiv Dataset import and implementation.
+
+    Attributes:
+
+        graph: The :code:`Graph` data object
+
+        y: Labels for each nodes
+
+        num_classes: Number of classes.
+
+        train_index: The index for nodes in training set.
+
+        val_index: The index for nodes in validation set.
+
+        test_index: The index for nodes in test set.
+
+        feature: The feature of all nodes. 
+
+    """
+
+    def __init__(self):
+        try:
+            from ogb.nodeproppred import NodePropPredDataset
+        except:
+            raise ImportError(
+                "Please run `pip install ogb` to install ogb library.")
+
+        self.dataset = NodePropPredDataset(name="ogbn-arxiv")
+        self._load_data()
+
+    def _load_data(self):
+        split_idx = self.dataset.get_idx_split()
+        train_idx = split_idx["train"]
+        valid_idx = split_idx["valid"]
+        test_idx = split_idx["test"]
+        ogb_graph, label = self.dataset[0]
+
+        edges = ogb_graph["edge_index"].T
+        graph = Graph(num_nodes=ogb_graph["num_nodes"], edges=edges)
+
+        self.graph = graph
+        self.train_index = train_idx
+        self.val_index = valid_idx
+        self.test_index = test_idx
+        self.y = label
+        self.feature = ogb_graph["node_feat"]
+        self.num_classes = self.dataset.num_classes

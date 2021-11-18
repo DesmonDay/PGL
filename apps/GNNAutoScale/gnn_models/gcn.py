@@ -28,6 +28,7 @@ class GCN(ScalableGNN):
                  output_size,
                  dropout=0.0,
                  drop_input=True,
+                 batch_norm=False,
                  pool_size=None,
                  buffer_size=None,
                  **kwargs):
@@ -38,6 +39,7 @@ class GCN(ScalableGNN):
         self.output_size = output_size
         self.dropout_fn = nn.Dropout(p=dropout)
         self.drop_input = drop_input
+        self.batch_norm = batch_norm
 
         self.convs = nn.LayerList()
         for i in range(num_layers):
@@ -49,12 +51,21 @@ class GCN(ScalableGNN):
             conv = pgl.nn.GCNConv(in_dim, out_dim, norm=True)
             self.convs.append(conv)
 
+        self.bns = nn.LayerList()
+        for i in range(num_layers):
+            bn = nn.BatchNorm1D(hidden_size)
+            self.bns.append(bn)
+
     def forward(self, graph, x, norm, *args):
         if self.drop_input:
             x = self.dropout_fn(x)
 
-        for conv, hist in zip(self.convs[:-1], self.histories):
+        for conv, hist, bn in zip(self.convs[:-1], self.histories, self.bns):
             x = conv(graph, x, norm)
+
+            if self.batch_norm:
+                x = bn(x)
+
             x = paddle.nn.ReLU()(x)
             x = self.push_and_pull(hist, x, *args)
             x = self.dropout_fn(x)

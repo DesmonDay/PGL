@@ -159,9 +159,10 @@ def main(args, config):
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             final_test_acc = test_acc
-        log.info(f"Epoch:%d, Train Loss: %.4f, Valid Acc: %.4f "
-                 f"Test Acc: %.4f, Final Acc: %.4f" %
-                 (epoch, loss, val_acc, test_acc, final_test_acc))
+        log.info(
+            f"Epoch:%d, Train Loss: %.4f, Valid Acc: %.4f "
+            f"Test Acc: %.4f, Final Valid Acc: %.4f, Final Test Acc: %.4f" %
+            (epoch, loss, val_acc, test_acc, best_val_acc, final_test_acc))
 
 
 if __name__ == "__main__":
