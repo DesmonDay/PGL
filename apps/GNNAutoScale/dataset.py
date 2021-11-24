@@ -31,12 +31,12 @@ from pgl.utils.transform import to_undirected, add_self_loops
 from utils import generate_mask
 
 
-class SubgraphData(object):
-    """Encapsulating the basic subgraph data structure.
+class BatchGraphData(object):
+    """Encapsulating the basic batch graph data structure.
 
     Args:
 
-        subgraph (pgl.Graph): Subgraph of the original graph object.
+        batch_graph (pgl.Graph): Batch of partition subgraphs of the original graph object.
 
         batch_size (int): Original number of nodes of batch partition graphs.
 
@@ -52,7 +52,7 @@ class SubgraphData(object):
         - Suppose after graph partition and permutation, new node order is [4, 6, 1, 5, 7, 0, 3, 2, 8, 9].
           And the partition graphs are [4, 6], [1, 5, 7], [0, 3], [2, 8, 9].
 
-        - Suppose we have a batch subgraph, and its nodes is [0, 3, 4, 6](two of the above partition graphs), then the batch_size = 4.
+        - Suppose we have a batch partition subgraph, and its nodes is [0, 3, 4, 6](two of the above partition graphs), then the batch_size = 4.
 
         - We find the one hop neighbor nodes of the subgraph's nodes, which are [1, 2, 4, 7, 9], 
           then the n_id is [0, 3, 4, 6, 1, 2, 7, 9]. Also `4` is also the neighbor nodes, it is included in batch_size. 
@@ -63,8 +63,8 @@ class SubgraphData(object):
 
     """
 
-    def __init__(self, subgraph, batch_size, n_id, offset, count):
-        self.subgraph = subgraph
+    def __init__(self, batch_graph, batch_size, n_id, offset, count):
+        self.batch_graph = batch_graph
         self.batch_size = batch_size
         self.n_id = n_id
         self.offset = offset
@@ -76,18 +76,45 @@ class PartitionDataset(Dataset):
 
     Args:
 
+       graph (pgl.Graph): The input graph.
+
        part (numpy.ndarray): An 1-D numpy array, which helps distinguish different parts of partition graphs.
     
     """
 
-    def __init__(self, part):
+    def __init__(self, graph, part):
         self.part = part
+        batches_nid = np.split(np.arange(graph.num_nodes), self.part[1:-1])
+        self.batches_nid = [(i, batches_nid[i]) for i in range(len(batches_nid))]
 
     def __getitem__(self, idx):
-        return (idx, np.arange(self.part[idx], self.part[idx + 1]))
+        return self.batches_nid[idx]
 
     def __len__(self):
         return len(self.part) - 1
+
+
+class PrePartitionDataset(Dataset):
+    """PrePartitionDataset helps build train dataset, where each partition subgraph' data
+       can be generated in advance, including one-hop neighbors, etc.
+
+    """
+    def __init__(self, graph, part, epoch):
+        self.part = part
+        self.epoch = epoch
+        batches_nid = np.split(np.arange(graph.num_nodes), self.part[1:-1])
+        self.center_nodes = [nid for nid in batches_nid]
+        self.one_hops = [graph.predecessor(nid, return_eids=True) for nid in batches_nid]
+        self.one_hop_nodes = [np.concatenate(item[0], -1) for item in self.one_hops] 
+        self.one_hop_eids = [np.concatenate(item[1], -1) for item in self.one_hops]
+        self.orig_len = len(self.part) - 1
+ 
+    def __getitem__(self, idx):
+        idx = idx % self.orig_len
+        return (idx, self.center_nodes[idx], self.one_hop_nodes[idx], self.one_hop_eids[idx])
+        
+    def __len__(self):
+        return (len(self.part) - 1) * self.epoch
 
 
 class EvalPartitionDataset(Dataset):
@@ -163,10 +190,28 @@ def subdata_batch_fn(batches_nid, graph, part, node_buffer):
     n_id = np.concatenate(n_ids, axis=0)
     batch_size = np.size(n_id)
     new_nid, pred_eids = one_hop_neighbor(graph, n_id, node_buffer)
-    sub_graph = subgraph(graph, nodes=new_nid, eid=pred_eids)
+    batch_sub_graph = subgraph(graph, nodes=new_nid, eid=pred_eids)
     offset = part[batch_ids]
     count = part[batch_ids + 1] - part[batch_ids]
-    return SubgraphData(sub_graph, batch_size, new_nid, offset, count)
+    return BatchGraphData(batch_sub_graph, batch_size, new_nid, offset, count)
+
+
+def presubdata_batch_fn(batches_shard_graphs, graph, part, node_buffer):
+    batch_ids, n_ids, one_hop_nodes, one_hop_eids = zip(*batches_shard_graphs)
+    batch_ids = np.array(batch_ids)
+    n_id = np.concatenate(n_ids, axis=0)
+    batch_size = np.size(n_id)
+    pred_nids = np.concatenate(one_hop_nodes, axis=0)
+    pred_eids = np.unique(np.concatenate(one_hop_eids, axis=0))
+    node_buffer[n_id] = 1
+    out_of_batch_neighbors = pred_nids[node_buffer[pred_nids] == 0]
+    out_of_batch_neighbors = np.unique(out_of_batch_neighbors)
+    new_nids = np.concatenate((n_id, out_of_batch_neighbors))
+    node_buffer[n_id] = 0
+    batch_sub_graph = subgraph(graph, nodes=new_nids, eid=pred_eids)
+    offset = part[batch_ids]
+    count = part[batch_ids + 1] - part[batch_ids]
+    return BatchGraphData(batch_sub_graph, batch_size, new_nids, offset, count)
 
 
 def load_dataset(data_name):
@@ -239,14 +284,24 @@ def create_dataloaders(graph, mode, part, num_workers, config):
         since current eval_loader might not be suitable for large dataset.
 
     """
-
-    train_dataset = PartitionDataset(part)
+    train_dataset = PartitionDataset(graph, part)
     collate_fn = partial(
         subdata_batch_fn,
         graph=graph,
         part=part,
         node_buffer=np.zeros(
             graph.num_nodes, dtype="int64"))
+
+    """
+    train_dataset = PrePartitionDataset(graph, part, epoch=100)
+    collate_fn = partial(
+        presubdata_batch_fn,
+        graph=graph,
+        part=part,
+        node_buffer=np.zeros(
+            graph.num_nodes, dtype="int64"))
+    """
+
     train_loader = Dataloader(
         train_dataset,
         batch_size=config.batch_size,

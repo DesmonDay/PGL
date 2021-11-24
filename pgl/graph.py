@@ -138,12 +138,12 @@ class Graph(object):
             self._num_nodes = maybe_num_nodes(self._edges)
         else:
             self._num_nodes = num_nodes
-            max_edge_id = maybe_num_nodes(self._edges)
-            if not isinstance(max_edge_id, paddle.fluid.framework.
-                              Variable) and self._num_nodes < max_edge_id:
-                raise ValueError("The max edge ID should be less than the number of nodes. "
-                        "But got max edge ID [%s] >= num_nodes [%s]" \
-                        % (max_edge_id-1, self._num_nodes))
+            # max_edge_id = maybe_num_nodes(self._edges)
+            # if not isinstance(max_edge_id, paddle.fluid.framework.
+            #                   Variable) and self._num_nodes < max_edge_id:
+            #     raise ValueError("The max edge ID should be less than the number of nodes. "
+            #             "But got max edge ID [%s] >= num_nodes [%s]" \
+            #             % (max_edge_id-1, self._num_nodes))
 
         self._adj_src_index = kwargs.get("adj_src_index", None)
         self._adj_dst_index = kwargs.get("adj_dst_index", None)

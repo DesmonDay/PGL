@@ -26,6 +26,7 @@ python run.py --conf config/cora/gcn.yaml
 python run.py --conf config/pubmed/gcn.yaml
 python run.py --conf config/citeseer/gcn.yaml
 python run.py --conf config/reddit/gcn.yaml
+python run.py --conf config/arxiv/gcn.yaml
 
 # GAT
 python run.py --conf config/cora/gat.yaml
@@ -216,6 +217,34 @@ python run.py --conf config/reddit/gcnii.yaml
       <td>96.72</td>
       <td>96.71</td>
       <td>96.77</td>
+   </tr>
+</table>
+
+### ogbn-arxiv Dataset
+
+<table>
+   <tr align="center">
+      <th>Accuracy</th>
+      <th colspan="2" align="center">GNNAutoScale</th>
+      <th>PyGAS</th>
+   </tr>
+   <tr align="center">
+      <td>Partition Method</td>
+      <td>Metis</td>
+      <td>Random </td>
+      <td>Metis</td>
+   </tr>
+   <tr align="center">
+      <td>GCN</td>
+      <td>71.0</td>
+      <td></td>
+      <td>71.68(paper)</td>
+   </tr>
+   <tr align="center">
+      <td>GCNII</td>
+      <td></td>
+      <td></td>
+      <td></td>
    </tr>
 </table>
 

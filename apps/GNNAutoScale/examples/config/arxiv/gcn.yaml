@@ -11,6 +11,6 @@ drop_input: False
 batch_norm: False
 gcn_norm: True
 grad_norm: False
-gen_train_data_in_advance: True
+gen_train_data_in_advance: False
 feat_gpu: True
 epochs: 400

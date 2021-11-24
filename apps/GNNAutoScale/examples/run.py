@@ -173,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_workers",
         type=int,
-        default=5,
+        default=1,
         help="Number of workers for Dataloader.")
     parser.add_argument(
         "--partition",

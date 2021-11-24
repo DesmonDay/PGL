@@ -115,6 +115,9 @@ def permute(data, feature, permutation, feat_gpu):
     feature = feature[permutation]
     if feat_gpu:
         feature = paddle.to_tensor(feature)
+    else:
+        feature = paddle.to_tensor(feature, place=paddle.CPUPlace())
+
     return data, feature
 
 
@@ -149,7 +152,7 @@ def process_batch_data(batch_data, feature=None, norm=None, only_nid=False):
     if only_nid:
         return batch_data.n_id
 
-    g = batch_data.subgraph
+    g = batch_data.batch_graph
     batch_size = batch_data.batch_size
     n_id = batch_data.n_id
     offset = batch_data.offset
